@@ -47,13 +47,34 @@ Android Emulator Resizable(Experimental)
 git clone git@github.com:ryu1maniwa/amplified_todo.git
 cd amplified_todo
 ```
-## flutterパッケージをインストール
+
+# Amplify CLIのインストール
+以下に従った  
+[Install the Amplify CLI](https://docs.amplify.aws/cli/start/install/#install-the-amplify-cli)
+
+## npmのインストール
+https://nodejs.org/en  
+https://qiita.com/taiponrock/items/9001ae194571feb63a5e
+
+## amplify configure実行時のエラー
+- エラー内容
 ```
-flutter pub add amplify_flutter
-flutter pub add amplify_datastore
-flutter pub add amplify_auth_cognito
-flutter pub add amplify_api
+amplify : このシステムではスクリプトの実行が無効になっているため、ファイル C:\Users\ryu1m\AppData\Roaming\npm\amplify.ps1 を読み込むことができま
+せん。詳細については、「about_Execution_Policies」(https://go.microsoft.com/fwlink/?LinkID=135170) を参照してください。
+発生場所 行:1 文字:1
++ amplify configure
++ ~~~~~~~
+    + CategoryInfo          : セキュリティ エラー: (: ) []、PSSecurityException
+    + FullyQualifiedErrorId : UnauthorizedAccess
 ```
+
+- 解決策
+PowerShellを管理者権限で開いて以下を実行する
+```
+Set-ExecutionPolicy Default -Scope CurrentUser
+```
+
+
 ## デプロイ済みのアプリをpull
 ```
 amplify pull --appId d2r7edsllyh3vz --envName staging
