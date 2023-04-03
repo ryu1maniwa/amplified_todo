@@ -1,0 +1,20 @@
+{
+  "es": [
+    "sendVerificationCode",
+    "reSendVerificationCode",
+    "username",
+    "password",
+    "passwordConfirmation",
+    "email",
+    "phone_number",
+    "verificationCode",
+    "newPassword",
+    "newPasswordConfirmation",
+    "gender",
+    "helloWorldOn"
+  ],
+
+  "ja": [
+    "helloWorldOn"
+  ]
+}

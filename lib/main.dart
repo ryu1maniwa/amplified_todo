@@ -1,14 +1,15 @@
-// dart async library you will refer to when setting up real time updates
-import 'dart:async';
-
-// flutter and ui libraries
-import 'package:flutter/material.dart';
-
-// amplify packages you will need to use
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:amplify_authenticator/amplify_authenticator.dart';
+import 'package:amplified_todo/resolvers/localized_button_resolver.dart';
+import 'package:amplified_todo/resolvers/localized_country_resolver.dart';
+import 'package:amplified_todo/resolvers/localized_input_resolver.dart';
+import 'package:amplified_todo/resolvers/localized_title_resolver.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter/material.dart';
+import 'package:amplified_todo/l10n/generated/amplify_localizations.dart';
+import 'package:amplified_todo/todopage.dart';
 import 'package:amplify_datastore/amplify_datastore.dart';
 import 'package:amplify_api/amplify_api.dart';
-import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 
 // amplify configuration and models that should have been generated for you
 import 'amplifyconfiguration.dart';
@@ -19,71 +20,24 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'Amplified Todo',
-      home: TodosPage(),
-    );
-  }
+  State<MyApp> createState() => _MyAppState();
 }
 
-class TodosPage extends StatefulWidget {
-  const TodosPage({Key? key}) : super(key: key);
-
-  @override
-  State<TodosPage> createState() => _TodosPageState();
-}
-
-class _TodosPageState extends State<TodosPage> {
-  // loading ui state - initially set to a loading state
-  bool _isLoading = true;
-
-  // subscription of Todo QuerySnapshots - to be initialized at runtime
-  late StreamSubscription<QuerySnapshot<Todo>> _subscription;
-
-  // list of todos - initially empty
-  List<Todo> _todos = [];
-
+class _MyAppState extends State<MyApp> {
   @override
   void initState() {
-    // kick off app initialization
-    _initializeApp();
-
-    // to be filled in a later step
     super.initState();
+    _configureAmplify();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-    _subscription.cancel();
-  }
-
-  Future<void> _initializeApp() async {
-    // configure Amplify
-    await _configureAmplify();
-
-    // Query and Observe updates to Todo models. DataStore.observeQuery() will
-    // emit an initial QuerySnapshot with a list of Todo models in the local store,
-    // and will emit subsequent snapshots as updates are made
-    //
-    // each time a snapshot is received, the following will happen:
-    // _isLoading is set to false if it is not already false
-    // _todos is set to the value in the latest snapshot
-    _subscription = Amplify.DataStore.observeQuery(Todo.classType)
-        .listen((QuerySnapshot<Todo> snapshot) {
-      setState(() {
-        if (_isLoading) _isLoading = false;
-        _todos = snapshot.items;
-      });
-    });
-  }
-
-  Future<void> _configureAmplify() async {
+  /// When using the Authenticator, configuration of Amplify is still the
+  /// responsibility of the developer. This allows you the opportunity to
+  /// customize plugin options and add/remove them as needed.
+  void _configureAmplify() async {
     try {
       // ammplify plugins
       final dataStorePlugin =
@@ -93,207 +47,259 @@ class _TodosPageState extends State<TodosPage> {
       // add Amplify plugins
       await Amplify.addPlugins([dataStorePlugin, apiPlugin, authPlugin]);
       await Amplify.configure(amplifyconfig);
-    } catch (e) {
+      print('Successfully configured');
+    } on Exception catch (e) {
       // error handling can be improved for sure!
       // but this will be sufficient for the purposes of this tutorial
       safePrint('An error occurred while configuring Amplify: $e');
     }
   }
 
+  /// Our custom username validator, which ensures that all usernames contain
+  /// the word "amplify".
+  String? _validateUsername(UsernameInput? input) {
+    final username = input?.username;
+    if (username == null || username.isEmpty) {
+      return 'Username cannot be empty';
+    }
+
+    bool containsAmplify = username.contains('amplify');
+    if (!containsAmplify) {
+      return 'Username needs to include amplify';
+    }
+
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // First, we set up the custom localizations for Authenticator buttons by
+    // creating a custom resolver which conforms to the `ButtonResolver` class
+    // from the Authenticator library.
+    //
+    // In addition to ButtonResolver, which handles the labels for buttons, there
+    // are also resolvers for input fields, screen titles, and navigation-related
+    // items, all of which can be customized as well. To keep this demo simple,
+    // we only specify a custom button resolver, which automatically configures
+    // the default for the others.
+    const stringResolver = AuthStringResolver(
+      buttons: LocalizedButtonResolver(),
+      countries: LocalizedCountryResolver(),
+      titles: LocalizedTitleResolver(),
+      inputs: LocalizedInputResolver(),
+    );
+
+    // We wrap our MaterialApp in an Authenticator component. This component
+    // handles all the screens and logic whenever the user is signed out. Once
+    // the user is signed in, the Authenticator will use your MaterialApp's
+    // navigator to show the correct screen.
+    return Authenticator(
+      stringResolver: stringResolver,
+      onException: (exception) {
+        print('[ERROR]: $exception');
+      },
+
+      // Next, we create a custom Sign Up form which uses our custom username
+      // validator.
+      //
+      // Providing a custom SignUpForm allows for simple customizations such as
+      // adding a sign up attribute or adding a custom validator. More complex
+      // customizations can be achieved by providing a custom builder method to
+      // Authenticator.builder(),
+
+      // signUpForm: SignUpForm.custom(
+      //   fields: [
+      //     SignUpFormField.username(
+      //       validator: _validateUsername,
+      //     ),
+      //     SignUpFormField.email(required: true),
+      //     SignUpFormField.password(),
+      //     SignUpFormField.passwordConfirmation(),
+      //     SignUpFormField.address(),
+      //     SignUpFormField.custom(
+      //       title: 'Bio',
+      //       attributeKey: const CognitoUserAttributeKey.custom('bio'),
+      //     ),
+      //     SignUpFormField.custom(
+      //       title: 'Age',
+      //       attributeKey: const CognitoUserAttributeKey.custom('age'),
+      //     )
+      //   ],
+      // ),
+
+      // Your MaterialApp should be the child of the Authenticator.
+      child: MaterialApp(
+        title: 'Authenticator Demo',
+        theme: ThemeData.light(),
+        darkTheme: ThemeData.dark(),
+        themeMode: ThemeMode.system,
+        debugShowCheckedModeBanner: false,
+
+        // These lines enable our custom localizations specified in the lib/l10n
+        // directory, which will be used later to customize the values displayed
+        // in the Authenticator component.
+        localizationsDelegates:
+            AuthenticatorLocalizations.localizationsDelegates,
+        supportedLocales: AuthenticatorLocalizations.supportedLocales,
+
+        // The Authenticator component must wrap your Navigator component which
+        // can be done using the `builder` method.
+        builder: Authenticator.builder(),
+
+        initialRoute: '/routeA',
+        routes: {
+          '/routeA': (BuildContext context) => const RouteA(),
+          '/routeB': (BuildContext context) => const RouteB(),
+          '/routeC': (BuildContext context) => TodosPage(),
+        },
+      ),
+    );
+  }
+
+  Future<bool> isUserSignedIn() async {
+    final result = await Amplify.Auth.fetchAuthSession();
+    return result.isSignedIn;
+  }
+
+  Future<AuthUser> getCurrentUser() async {
+    final user = await Amplify.Auth.getCurrentUser();
+    return user;
+  }
+
+  // Some routes in your application may not require authentication.
+  // To handle this use case, instead of providing Authenticator.builder(),
+  // simply wrap the routes that require authentication in an
+  // AuthenticatedView widget.
+  //
+  // uncomment the build method below to try this out
+
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Authenticator(
+  //     child: MaterialApp(
+  //       theme: ThemeData.light(),
+  //       darkTheme: ThemeData.dark(),
+  //       themeMode: ThemeMode.system,
+  //       debugShowCheckedModeBanner: false,
+  //       initialRoute: '/routeA',
+  //       routes: {
+  //         '/routeA': (BuildContext context) => const RouteA(),
+  //         '/routeB': (BuildContext context) {
+  //           return const AuthenticatedView(
+  //             child: RouteB(),
+  //           );
+  //         },
+  //       },
+  //     ),
+  //   );
+  // }
+
+  // Providing a `builder` argument to Authenticator.builder allows you to
+  // build a custom UI for the authenticator composed of a mix of
+  // prebuilt widgets from the amplify_authenticator package, and widgets
+  // you build yourself.
+  //
+  // See authenticator_with_custom_layout.dart for more info
+  //
+  // Uncomment the build method below (and comment out the one above) to
+  // see a simple example of this
+
+  // @override
+  // Widget build(BuildContext context) {
+  //   return const AuthenticatorWithCustomLayout();
+  // }
+
+  // Below is another example of a custom authenticator, with a custom
+  // onboarding widget
+
+  // @override
+  // Widget build(BuildContext context) {
+  //   return const AuthenticatorWithOnboarding();
+  // }
+
+  // Below is yet another example of a custom authenticator, with a widget to support Cognito's Custom Auth flow
+  // @override
+  // Widget build(BuildContext context) {
+  //   return const AuthenticatorWithCustomAuthFlow();
+  // }
+}
+
+/// The screen which is shown once the user is logged in. We can use [SignOutButton]
+/// from the Authenticator library anywhere in our app to provide a pre-configured
+/// sign out experience. Alternatively, we can call [Amplify.Auth.signOut] which
+/// will also notify the Authenticator.
+class RouteA extends StatelessWidget {
+  const RouteA({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Todo List'),
+        title: const Text('Route A'),
       ),
-      // body: const Center(child: CircularProgressIndicator()),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : TodosList(todos: _todos),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddTodoForm()),
-          );
-        },
-        tooltip: 'Add Todo',
-        label: Row(
-          children: const [Icon(Icons.add), Text('Add todo')],
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-    );
-  }
-}
-
-class TodosList extends StatelessWidget {
-  const TodosList({
-    required this.todos,
-    Key? key,
-  }) : super(key: key);
-
-  final List<Todo> todos;
-
-  @override
-  Widget build(BuildContext context) {
-    return todos.isNotEmpty
-        ? ListView(
-            padding: const EdgeInsets.all(8),
-            children: todos.map((todo) => TodoItem(todo: todo)).toList())
-        : const Center(
-            child: Text('Tap button below to add a todo!'),
-          );
-  }
-}
-
-class TodoItem extends StatelessWidget {
-  const TodoItem({
-    required this.todo,
-    Key? key,
-  }) : super(key: key);
-
-  final double iconSize = 24.0;
-  final Todo todo;
-
-  void _deleteTodo(BuildContext context) async {
-    try {
-      // to delete data from DataStore, you pass the model instance to
-      // Amplify.DataStore.delete()
-      await Amplify.DataStore.delete(todo);
-    } catch (e) {
-      safePrint('An error occurred while deleting Todo: $e');
-    }
-  }
-
-  Future<void> _toggleIsComplete() async {
-    // copy the Todo you wish to update, but with updated properties
-    final updatedTodo = todo.copyWith(isComplete: !todo.isComplete);
-    try {
-      // to update data in DataStore, you again pass an instance of a model to
-      // Amplify.DataStore.save()
-      await Amplify.DataStore.save(updatedTodo);
-    } catch (e) {
-      safePrint('An error occurred while saving Todo: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: () {
-          _toggleIsComplete();
-        },
-        onLongPress: () {
-          _deleteTodo(context);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    todo.name,
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  Text(todo.description ?? 'No description'),
-                ],
+      body: Center(
+        child: Column(
+          children: [
+            // Returns 'he'
+            // Text(AuthenticatorLocalizations.of(context).gender('male')),
+            // // Returns 'she'
+            // Text(AuthenticatorLocalizations.of(context).gender('female')),
+            // // Returns 'they'
+            // Text(AuthenticatorLocalizations.of(context).gender('other')),            Text(AppLocalizations.of(context)
+            // Text(AuthenticatorLocalizations.of(context)
+            //     .helloWorldOn(DateTime.utc(1996, 7, 10))),
+            Localizations.override(
+              context: context,
+              locale: const Locale('ja'),
+              // Using a Builder to get the correct BuildContext.
+              // Alternatively, you can create a new widget and Localizations.override
+              // will pass the updated BuildContext to the new widget.
+              child: Builder(
+                builder: (context) {
+                  // A toy example for an internationalized Material widget.
+                  return CalendarDatePicker(
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime(2100),
+                    onDateChanged: (value) {},
+                  );
+                },
               ),
             ),
-            Icon(
-                todo.isComplete
-                    ? Icons.check_box
-                    : Icons.check_box_outline_blank,
-                size: iconSize),
-          ]),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.of(context).pushReplacementNamed('/routeC'),
+              child: const Text('Goto /routeC'),
+            ),
+            const SizedBox(height: 20),
+            const SignOutButton(),
+          ],
         ),
       ),
     );
   }
 }
 
-class AddTodoForm extends StatefulWidget {
-  const AddTodoForm({Key? key}) : super(key: key);
-
-  @override
-  State<AddTodoForm> createState() => _AddTodoFormState();
-}
-
-class _AddTodoFormState extends State<AddTodoForm> {
-  late final TextEditingController _nameController;
-  late final TextEditingController _descriptionController;
-
-  @override
-  void initState() {
-    _nameController = TextEditingController();
-    _descriptionController = TextEditingController();
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    _nameController.dispose();
-    _descriptionController.dispose();
-  }
-
-  Future<void> _saveTodo() async {
-    // get the current text field contents
-    final name = _nameController.text;
-    final description = _descriptionController.text;
-    // create a new Todo from the form values
-    // `isComplete` is also required, but should start false in a new Todo
-    final newTodo = Todo(
-      name: name,
-      description: description.isNotEmpty ? description : null,
-      isComplete: false,
-    );
-    try {
-      // to write data to DataStore, you simply pass an instance of a model to
-      // Amplify.DataStore.save()
-      await Amplify.DataStore.save(newTodo);
-      // after creating a new Todo, close the form
-      // Be sure the context at that moment is still valid and mounted
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      safePrint('An error occurred while saving Todo: $e');
-    }
-  }
+class RouteB extends StatelessWidget {
+  const RouteB({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Todo'),
+        title: const Text('Route B'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration:
-                    const InputDecoration(filled: true, labelText: 'Name'),
-              ),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                    filled: true, labelText: 'Description'),
-              ),
-              ElevatedButton(
-                onPressed: _saveTodo,
-                child: const Text('Save'),
-              )
-            ],
-          ),
+      body: Center(
+        child: Column(
+          children: [
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.of(context).pushReplacementNamed('/routeA'),
+              child: const Text('Goto Route A'),
+            ),
+            const SizedBox(height: 20),
+            const SignOutButton(),
+          ],
         ),
       ),
     );
