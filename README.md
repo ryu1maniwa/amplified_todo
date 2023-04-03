@@ -1,6 +1,20 @@
 # このリポジトリを用いてアプリを実行する
-
-## 環境構築(Windows)
+```
+git clone git@github.com:ryu1maniwa/amplified_todo.git
+cd amplified_todo
+amplify pull --appId d2r7edsllyh3vz --envName staging
+? Choose your default editor:
+    `<your editor of choice>`
+? Choose the type of app that you're building
+    `flutter`
+? Where do you want to store your configuration file?
+    `./lib/`
+? Do you plan on modifying this backend?
+    `Yes`
+✅ Successfully pulled backend environment staging from the cloud.
+flutter pub get
+```
+# 環境構築メモ(Windows)
 基本的に以下のサイトに従う  
 https://docs.flutter.dev/get-started/install/windows
 
@@ -72,19 +86,4 @@ amplify : このシステムではスクリプトの実行が無効になって�
 PowerShellを管理者権限で開いて以下を実行する
 ```
 Set-ExecutionPolicy Default -Scope CurrentUser
-```
-
-
-## デプロイ済みのアプリをpull
-```
-amplify pull --appId d2r7edsllyh3vz --envName staging
-? Choose your default editor:
-    `<your editor of choice>`
-? Choose the type of app that you're building
-    `flutter`
-? Where do you want to store your configuration file?
-    `./lib/`
-? Do you plan on modifying this backend?
-    `Yes`
-✅ Successfully pulled backend environment staging from the cloud.
 ```
